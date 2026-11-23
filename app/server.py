@@ -110,6 +110,13 @@ def unique_path(folder: Path, name: str) -> Path:
 # --------------------------------------------------------------------------
 # 服务主体
 # --------------------------------------------------------------------------
+class ClientGone(Exception):
+    """手机端在上传过程中断开（取消、切后台、Wi-Fi 掉线）。
+
+    这种情况下响应已经写不回去了，调用方只需要关掉连接，不要当成服务端错误。
+    """
+
+
 class AppServer:
     def __init__(self) -> None:
         self.store = Store()
@@ -128,6 +135,18 @@ class AppServer:
             self.upload_dir.mkdir(parents=True, exist_ok=True)
         self._httpd: ThreadingHTTPServer | None = None
         self.tunnel = Tunnel(self.port, on_change=self._sync_tunnel)
+        self._clean_partials()
+
+    def _clean_partials(self) -> None:
+        """清掉上次异常退出（断电、强杀进程）遗留的 .part 半截文件。"""
+        try:
+            for p in self.upload_dir.glob("*.part"):
+                try:
+                    p.unlink()
+                except OSError:
+                    pass
+        except OSError:
+            pass
 
     def _sync_tunnel(self) -> None:
         st = self.tunnel.status()
@@ -221,17 +240,27 @@ class AppServer:
         tmp = dest.with_suffix(dest.suffix + ".part")
         remaining = length
         written = 0
-        with open(tmp, "wb") as f:
-            while remaining > 0:
-                chunk = stream.read(min(262144, remaining))
-                if not chunk:
-                    break
-                f.write(chunk)
-                written += len(chunk)
-                remaining -= len(chunk)
+        try:
+            with open(tmp, "wb") as f:
+                while remaining > 0:
+                    chunk = stream.read(min(262144, remaining))
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    written += len(chunk)
+                    remaining -= len(chunk)
+        except (ConnectionResetError, BrokenPipeError, TimeoutError) as e:
+            tmp.unlink(missing_ok=True)      # 不留半截文件在“老师上传”目录里
+            raise ClientGone(str(e)) from None
+        except OSError:
+            tmp.unlink(missing_ok=True)      # 磁盘满 / 无权限之类的真错误，交给上层报 500
+            raise
         if written == 0:
             tmp.unlink(missing_ok=True)
             raise ValueError("没有收到文件内容")
+        if remaining > 0:                    # 连接没断但数据没读完
+            tmp.unlink(missing_ok=True)
+            raise ClientGone("上传被中断，未收到完整文件")
         tmp.replace(dest)
         added = self.store.add_paths([dest], source="upload")
         self.store.bump_upload()
@@ -278,18 +307,23 @@ class ApiHandler(BaseHTTPRequestHandler):
     # ---- 输出helpers ----
     def _send(self, code: int, body: bytes, ctype: str = "application/octet-stream",
               extra: dict | None = None, head_only: bool = False) -> None:
-        self.send_response(code)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        for k, v in (extra or {}).items():
-            self.send_header(k, v)
-        self.end_headers()
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            for k, v in (extra or {}).items():
+                self.send_header(k, v)
+            self.end_headers()
+        except (BrokenPipeError, ConnectionResetError):
+            # 客户端提前断开：连响应头都发不出去，直接关连接，别让 traceback 冒到 socketserver
+            self.close_connection = True
+            return
         if not head_only:
             try:
                 self.wfile.write(body)
             except (BrokenPipeError, ConnectionResetError):
-                pass
+                self.close_connection = True
 
     def _json(self, obj, code: int = 200, head_only: bool = False) -> None:
         self._send(code, json.dumps(obj, ensure_ascii=False).encode("utf-8"),
@@ -394,6 +428,10 @@ class ApiHandler(BaseHTTPRequestHandler):
             try:
                 result = app.handle_upload(fname, self.rfile, length)
                 return self._json(result)
+            except ClientGone:
+                # 手机已经走了，响应写不回去，静默关连接；半截文件已在 handle_upload 里清掉
+                self.close_connection = True
+                return
             except ValueError as e:
                 self.close_connection = True   # 未读取请求体，直接断开避免脏连接
                 return self._json({"ok": False, "error": str(e)}, 400)
@@ -502,19 +540,26 @@ class ApiHandler(BaseHTTPRequestHandler):
                 if m.group(2):
                     end = min(int(m.group(2)), size - 1)
                 if start > end or start >= size:
-                    self.send_response(416)
-                    self.send_header("Content-Range", f"bytes */{size}")
-                    self.end_headers()
+                    try:
+                        self.send_response(416)
+                        self.send_header("Content-Range", f"bytes */{size}")
+                        self.end_headers()
+                    except (BrokenPipeError, ConnectionResetError):
+                        self.close_connection = True
                     return
                 status = 206
         length = end - start + 1
-        self.send_response(status)
-        self.send_header("Content-Type", ctype)
-        self.send_header("Accept-Ranges", "bytes")
-        self.send_header("Content-Length", str(length))
-        if status == 206:
-            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
-        self.end_headers()
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Length", str(length))
+            if status == 206:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.end_headers()
+        except (BrokenPipeError, ConnectionResetError):
+            self.close_connection = True      # 拖动进度时连续发 Range 请求，旧连接常被主动断开
+            return
         if head_only:
             return
         try:
@@ -528,7 +573,7 @@ class ApiHandler(BaseHTTPRequestHandler):
                     self.wfile.write(chunk)
                     remaining -= len(chunk)
         except (BrokenPipeError, ConnectionResetError):
-            pass
+            self.close_connection = True
 
     @staticmethod
     def _open_in_explorer(target: Path) -> None:
