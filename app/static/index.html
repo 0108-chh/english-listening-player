@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>英语听力播放器</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-logo" viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0 1 16 0v2" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/><rect x="2.6" y="13.4" width="4.6" height="7.2" rx="2.2" fill="currentColor"/><rect x="16.8" y="13.4" width="4.6" height="7.2" rx="2.2" fill="currentColor"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.14.5.57.87 1.09 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round" transform="translate(0,0) scale(0.92) translate(1,1)"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h3.2c.7 0 1.36.29 1.84.8l.9.94h7.06A2.5 2.5 0 0 1 21 9.24v7.26A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9Z" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linejoin="round"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.2" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.6c0-.9 1-1.5 1.8-1l9 6.4c.7.5.7 1.5 0 2l-9 6.4c-.8.5-1.8-.1-1.8-1V5.6Z" fill="currentColor"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="7" y="5" width="3.6" height="14" rx="1.4" fill="currentColor"/><rect x="13.4" y="5" width="3.6" height="14" rx="1.4" fill="currentColor"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M18 6.4c0-.9-1-1.4-1.7-.9l-7.6 5.1c-.6.4-.6 1.4 0 1.8l7.6 5.1c.7.5 1.7 0 1.7-.9V6.4Z" fill="currentColor"/><rect x="5" y="5.4" width="2.4" height="13.2" rx="1.2" fill="currentColor"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M6 6.4c0-.9 1-1.4 1.7-.9l7.6 5.1c.6.4.6 1.4 0 1.8l-7.6 5.1c-.7.5-1.7 0-1.7-.9V6.4Z" fill="currentColor"/><rect x="16.6" y="5.4" width="2.4" height="13.2" rx="1.2" fill="currentColor"/></symbol>
+  <symbol id="i-replay" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.4-5.5" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round"/><path d="M4 4.5V9h4.5" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9.5h3L11 6v12L7 14.5H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z" fill="currentColor"/><path d="M14.6 8.6a5 5 0 0 1 0 6.8M17.3 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5h3L11 6v12L7 14.5H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1Z" fill="currentColor"/><path d="m15 9.5 5 5M20 9.5l-5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V5.6c0-.9.7-1.6 1.6-1.6h1.8c.9 0 1.6.7 1.6 1.6V7m-8 0 .8 11c.1 1 .9 1.7 1.9 1.7h3.6c1 0 1.8-.7 1.9-1.7l.8-11" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></symbol>
+  <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7" fill="none"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7" fill="none"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M14 14h3v3h-3zM20.5 14v.01M14 20.5v.01M17.5 20.5H21v-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M9 18V6.6c0-.5.34-.92.82-1.04l7-1.8c.63-.16 1.18.32 1.18.97V16" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"/><circle cx="6.5" cy="18" r="2.6" stroke="currentColor" stroke-width="1.7" fill="none"/><circle cx="16.5" cy="16" r="2.6" stroke="currentColor" stroke-width="1.7" fill="none"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.4 4.4L19 7.2" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.5 15v3A2.5 2.5 0 0 0 7 20.5h10a2.5 2.5 0 0 0 2.5-2.5v-3" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon"><svg><use href="#i-logo"/></svg></div>
+      <div class="brand-text">
+        <h1>英语听力播放器</h1>
+        <span>扫码上传 · 课堂播放</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="status-chip" id="channelChip">
+        <span class="dot" id="channelDot"></span>
+        <span id="channelText">局域网直连</span>
+      </div>
+      <button class="icon-btn" id="btnSettings" title="设置">
+        <svg><use href="#i-gear"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel qr-panel">
+      <div class="panel-title">
+        <h2><svg class="ti"><use href="#i-qr"/></svg>手机扫码上传</h2>
+        <span class="tag" id="channelTag">局域网</span>
+      </div>
+
+      <div class="qr-box">
+        <div class="qr-frame"><img id="qrImg" alt="上传二维码"></div>
+        <div class="qr-hint">
+          <span class="pulse"></span>等待老师扫码
+        </div>
+      </div>
+
+      <div class="url-pill">
+        <span class="url-text" id="urlText">获取中…</span>
+        <button class="mini-btn" id="btnCopy">复制</button>
+      </div>
+
+      <ol class="steps">
+        <li><i>1</i><span>手机扫描上方二维码</span></li>
+        <li><i>2</i><span>选择英语听力音频并上传</span></li>
+        <li><i>3</i><span>上传完成，电脑端自动播放</span></li>
+      </ol>
+
+      <div class="recent">
+        <div class="recent-head">最近上传<span id="recentCount"></span></div>
+        <div class="recent-list" id="recentList">
+          <div class="recent-empty">暂无上传记录</div>
+        </div>
+      </div>
+
+      <div class="qr-foot">
+        <button class="link-btn" id="btnReveal">上传目录</button>
+        <span class="sep"></span>
+        <button class="link-btn" id="btnRefreshQr">刷新二维码</button>
+      </div>
+    </aside>
+
+    <section class="panel list-panel">
+      <div class="list-head">
+        <div class="list-title">
+          <h2>播放列表</h2>
+          <span class="count" id="trackCount">0 首</span>
+        </div>
+        <div class="list-tools">
+          <label class="search">
+            <svg><use href="#i-search"/></svg>
+            <input id="searchInput" placeholder="搜索音频" autocomplete="off">
+          </label>
+          <button class="btn tinted" id="btnAddFolder">
+            <svg><use href="#i-folder"/></svg>添加听力目录
+          </button>
+          <button class="btn ghost" id="btnAddFiles">
+            <svg><use href="#i-plus"/></svg>添加文件
+          </button>
+        </div>
+      </div>
+
+      <div class="list-body" id="listBody">
+        <div class="empty" id="emptyState">
+          <div class="empty-icon"><svg><use href="#i-note"/></svg></div>
+          <h3>播放列表还是空的</h3>
+          <p>添加课本听力目录，或让老师扫码上传音频</p>
+          <div class="empty-actions">
+            <button class="btn primary" id="emptyAddFolder">添加听力目录</button>
+            <button class="btn ghost" id="emptyAddFiles">添加文件</button>
+          </div>
+        </div>
+        <div class="tracks" id="tracks"></div>
+      </div>
+
+      <div class="list-foot">
+        <span class="hint-text">播放结束不会自动跳下一首 · 支持拖入音频文件</span>
+        <button class="link-btn danger" id="btnClear">清空列表</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="player">
+    <div class="now-playing">
+      <div class="cover" id="cover"><svg><use href="#i-note"/></svg></div>
+      <div class="np-text">
+        <div class="np-title" id="npTitle">未选择音频</div>
+        <div class="np-sub" id="npSub">从上方列表选择一首听力开始</div>
+      </div>
+    </div>
+
+    <div class="transport">
+      <button class="ctrl" id="btnPrev" title="上一首"><svg><use href="#i-prev"/></svg></button>
+      <button class="play-btn" id="btnPlay" title="播放 / 暂停 (空格)">
+        <svg id="playIcon"><use href="#i-play"/></svg>
+      </button>
+      <button class="ctrl" id="btnNext" title="下一首"><svg><use href="#i-next"/></svg></button>
+    </div>
+
+    <div class="timeline">
+      <span class="t" id="tNow">00:00</span>
+      <div class="bar" id="bar">
+        <div class="bar-bg"></div>
+        <div class="bar-fill" id="barFill"></div>
+        <div class="bar-knob" id="barKnob"></div>
+      </div>
+      <span class="t" id="tTotal">00:00</span>
+    </div>
+
+    <div class="extra">
+      <div class="speed-wrap">
+        <span class="speed-label">倍速</span>
+        <div class="speed-group" id="speedGroup">
+          <button data-speed="0.5">0.5×</button>
+          <button data-speed="0.75">0.75×</button>
+          <button data-speed="1" class="on">1.0×</button>
+          <button data-speed="1.25">1.25×</button>
+          <button data-speed="1.5">1.5×</button>
+          <button data-speed="2">2.0×</button>
+        </div>
+      </div>
+      <div class="vol-wrap">
+        <button class="ctrl small" id="btnMute" title="静音"><svg><use href="#i-vol"/></svg></button>
+        <input type="range" id="volRange" min="0" max="100" value="85">
+      </div>
+    </div>
+  </footer>
+</div>
+
+<div class="modal-mask" id="modalMask" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>设置</h3>
+      <button class="icon-btn" id="btnCloseModal">✕</button>
+    </div>
+    <div class="modal-body">
+      <section class="field">
+        <h4>上传方式</h4>
+        <div class="channel-opts">
+          <button class="channel-opt" data-channel="lan">
+            <div class="co-top"><strong>局域网直连</strong><em class="co-state" id="lanState">已就绪</em></div>
+            <span>手机与电脑连同一个 Wi-Fi 即可，速度快、不依赖外网（首次运行请允许防火墙访问）</span>
+          </button>
+          <button class="channel-opt" data-channel="tunnel">
+            <div class="co-top"><strong>公网中转</strong><em class="co-state" id="tunnelState">未启用</em></div>
+            <span>手机用 4G 或校园网隔离时使用，经第三方服务器中转，上传页无广告</span>
+          </button>
+        </div>
+        <p class="hint" id="tunnelHint">公网中转使用 Cloudflare 免费快速隧道，仅首次需要下载约 50MB 组件。</p>
+      </section>
+
+      <section class="field">
+        <h4>听力目录</h4>
+        <div class="folder-list" id="folderList"></div>
+        <p class="hint">添加过的目录会自动记住，下次启动时自动补上目录里新增的音频。</p>
+      </section>
+
+      <section class="field">
+        <h4>上传保存位置</h4>
+        <div class="path-row">
+          <code id="uploadDir">—</code>
+          <button class="btn ghost small" id="btnOpenDir">打开目录</button>
+        </div>
+      </section>
+
+      <section class="field">
+        <h4>快捷键</h4>
+        <ul class="keys">
+          <li><kbd>空格</kbd>播放 / 暂停</li>
+          <li><kbd>←</kbd><kbd>→</kbd>快退 / 快进 5 秒</li>
+          <li><kbd>[</kbd><kbd>]</kbd>降低 / 提高倍速</li>
+        </ul>
+      </section>
+    </div>
+    <div class="modal-foot">
+      <span class="ver" id="verText">v1.0.0</span>
+      <button class="btn primary" id="btnDone">完成</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<audio id="audio" preload="metadata"></audio>
+<script src="/static/app.js"></script>
+</body>
+</html>

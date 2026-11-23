@@ -1,0 +1,27 @@
+# 虚拟环境与缓存
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 打包产物
+build/
+dist/
+*.spec
+
+# 第三方中转组件：体积 55MB，不入库
+# 需要时从 Cloudflare 官方下载放到 tools/cloudflared.exe（见 README）
+tools/cloudflared.exe
+tools/cloudflared
+
+# 本机运行状态
+state.json
+*.log
+
+# 编辑器 / 系统
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

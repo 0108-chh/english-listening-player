@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f6bf6">
+<title>上传英语听力</title>
+<style>
+  :root{
+    --ink:#0f1522;--ink2:#3d4757;--muted:#7a8595;--line:#e6eaf3;
+    --accent:#2f6bf6;--green:#10b981;--red:#e5484d;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    color:var(--ink);
+    background:radial-gradient(600px 300px at 50% -10%,#e6eeff 0%,rgba(230,238,255,0) 60%),#eef1f8;
+    min-height:100vh;
+    padding:22px 16px calc(28px + env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:520px;margin:0 auto}
+  .hero{text-align:center;margin-bottom:18px}
+  .logo{
+    width:56px;height:56px;margin:0 auto 12px;border-radius:18px;
+    background:linear-gradient(150deg,#4c82ff,#2f6bf6 60%,#1b52d8);
+    display:grid;place-items:center;color:#fff;
+    box-shadow:0 10px 24px -10px rgba(47,107,246,.9);
+  }
+  .logo svg{width:28px;height:28px}
+  h1{font-size:20px;margin:0 0 6px;font-weight:650;letter-spacing:.3px}
+  .sub{font-size:13px;color:var(--muted);margin:0;line-height:1.6}
+  .card{
+    background:#fff;border:1px solid var(--line);border-radius:20px;
+    box-shadow:0 18px 40px -28px rgba(15,21,34,.5),0 2px 6px rgba(15,21,34,.04);
+    padding:18px;margin-bottom:14px;
+  }
+  .drop{
+    border:1.5px dashed #cdd8ec;border-radius:16px;background:#f8faff;
+    padding:26px 16px;text-align:center;transition:.18s;display:block;
+  }
+  .drop:active{border-color:var(--accent);background:#f3f7ff}
+  .drop .up-ico{
+    width:46px;height:46px;margin:0 auto 10px;border-radius:14px;
+    background:#eaf1ff;color:var(--accent);display:grid;place-items:center;
+  }
+  .drop .up-ico svg{width:24px;height:24px}
+  .drop b{display:block;font-size:15px;color:#1f55cf;font-weight:600;margin-bottom:4px}
+  .drop span{font-size:12px;color:var(--muted)}
+  input[type=file]{display:none}
+  .filelist{margin-top:14px;display:grid;gap:9px}
+  .file{
+    border:1px solid var(--line);border-radius:13px;padding:11px 12px;background:#fff;
+    animation:in .22s ease both;
+  }
+  @keyframes in{from{opacity:0;transform:translateY(-3px)}}
+  .f-top{display:flex;align-items:center;gap:9px}
+  .f-ico{
+    width:30px;height:30px;flex:none;border-radius:9px;background:#f1f4fa;
+    color:#7b8ba3;display:grid;place-items:center;
+  }
+  .f-ico svg{width:16px;height:16px}
+  .f-main{flex:1;min-width:0}
+  .f-name{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+  .f-size{font-size:11px;color:#a2acbb;margin-top:2px}
+  .f-state{font-size:12px;flex:none;color:var(--muted)}
+  .f-state.ok{color:var(--green);font-weight:600}
+  .f-state.err{color:var(--red);font-weight:600}
+  .f-bar{height:4px;border-radius:2px;background:#eef2f8;margin-top:9px;overflow:hidden;display:none}
+  .file.uploading .f-bar{display:block}
+  .f-bar i{display:block;height:100%;width:0;border-radius:2px;background:linear-gradient(90deg,#6f97ff,#2f6bf6);transition:width .18s}
+  .done-tip{
+    display:none;align-items:center;gap:8px;margin-top:14px;padding:11px 13px;
+    background:#e9f9f2;border:1px solid #c8f0df;border-radius:12px;
+    color:#0a8f66;font-size:13px;line-height:1.5;
+  }
+  .done-tip.show{display:flex}
+  .done-tip svg{width:18px;height:18px;flex:none}
+  .tips{font-size:12px;color:var(--muted);line-height:1.9;padding:0 4px}
+  .tips b{color:var(--ink2);font-weight:600}
+  .status{
+    display:flex;align-items:center;justify-content:center;gap:6px;
+    font-size:12px;color:#9aa5b4;margin-top:14px;
+  }
+  .dot{width:6px;height:6px;border-radius:50%;background:#c8d1e0}
+  .dot.on{background:var(--green);box-shadow:0 0 0 3px rgba(16,185,129,.15)}
+  .dot.bad{background:var(--red)}
+  .foot{text-align:center;font-size:11.5px;color:#aab3c0;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none">
+        <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4.5 15v3A2.5 2.5 0 0 0 7 20.5h10a2.5 2.5 0 0 0 2.5-2.5v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <h1>上传英语听力音频</h1>
+    <p class="sub">选择音频后上传，电脑端会自动开始播放</p>
+  </div>
+
+  <div class="card">
+    <label class="drop" for="picker">
+      <div class="up-ico">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4.5 15v3A2.5 2.5 0 0 0 7 20.5h10a2.5 2.5 0 0 0 2.5-2.5v-3" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <b>点击选择音频文件</b>
+      <span>支持 mp3 / wav / m4a / flac 等格式，可多选</span>
+    </label>
+    <input type="file" id="picker" accept="audio/*,.mp3,.wav,.m4a,.flac,.ogg,.aac" multiple>
+
+    <div class="filelist" id="filelist"></div>
+
+    <div class="done-tip" id="doneTip">
+      <svg viewBox="0 0 24 24" fill="none"><path d="m5 12.5 4.4 4.4L19 7.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="doneText">上传成功，电脑端已开始播放</span>
+    </div>
+
+    <div class="status" id="status">
+      <span class="dot" id="dot"></span><span id="statusText">正在连接电脑…</span>
+    </div>
+  </div>
+
+  <div class="tips">
+    <b>提示</b><br>
+    · 上传完成后请保持本页面打开，无需其他操作<br>
+    · 音频会保存在电脑的「英语听力 / 老师上传」文件夹<br>
+    · 若上传失败，请确认手机与电脑在同一网络，或让电脑端改用公网中转
+  </div>
+  <div class="foot">英语听力播放器 · 课堂专用</div>
+</div>
+
+<script>
+(function () {
+  var TOKEN = (location.pathname.split('/').filter(Boolean).pop() || '').trim();
+  var picker = document.getElementById('picker');
+  var list = document.getElementById('filelist');
+  var doneTip = document.getElementById('doneTip');
+  var doneText = document.getElementById('doneText');
+  var queue = [];
+  var busy = false;
+  var okCount = 0;
+
+  function fmtSize(n) {
+    if (!n) return '0 B';
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n / 1024).toFixed(0) + ' KB';
+    return (n / 1048576).toFixed(1) + ' MB';
+  }
+
+  function el(tag, cls, html) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html != null) e.innerHTML = html;
+    return e;
+  }
+
+  function addFileRow(file) {
+    var row = el('div', 'file');
+    row.innerHTML =
+      '<div class="f-top">' +
+        '<div class="f-ico"><svg viewBox="0 0 24 24" fill="none">' +
+          '<path d="M9 18V6.6c0-.5.34-.92.82-1.04l7-1.8c.63-.16 1.18.32 1.18.97V16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
+          '<circle cx="6.5" cy="18" r="2.6" stroke="currentColor" stroke-width="1.7"/>' +
+          '<circle cx="16.5" cy="16" r="2.6" stroke="currentColor" stroke-width="1.7"/></svg></div>' +
+        '<div class="f-main"><div class="f-name"></div><div class="f-size">' + fmtSize(file.size) + '</div></div>' +
+        '<div class="f-state">等待上传</div>' +
+      '</div>' +
+      '<div class="f-bar"><i></i></div>';
+    row.querySelector('.f-name').textContent = file.name;
+    list.appendChild(row);
+    return row;
+  }
+
+  function upload(file, row) {
+    return new Promise(function (resolve) {
+      var state = row.querySelector('.f-state');
+      var bar = row.querySelector('.f-bar i');
+      var xhr = new XMLHttpRequest();
+      row.classList.add('uploading');
+      state.textContent = '上传中';
+      xhr.open('POST', '/api/upload?t=' + encodeURIComponent(TOKEN));
+      xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) {
+          var p = Math.round(e.loaded / e.total * 100);
+          bar.style.width = p + '%';
+          state.textContent = p + '%';
+        }
+      };
+      xhr.onload = function () {
+        row.classList.remove('uploading');
+        var res = {};
+        try { res = JSON.parse(xhr.responseText); } catch (err) {}
+        if (xhr.status === 200 && res.ok) {
+          state.textContent = '已完成';
+          state.classList.add('ok');
+          bar.style.width = '100%';
+          okCount++;
+          if (res.name) {
+            var nm = row.querySelector('.f-name');
+            nm.textContent = res.name;
+          }
+          resolve(true);
+        } else {
+          state.textContent = res.error || '失败';
+          state.classList.add('err');
+          resolve(false);
+        }
+      };
+      xhr.onerror = function () {
+        row.classList.remove('uploading');
+        state.textContent = '网络错误';
+        state.classList.add('err');
+        resolve(false);
+      };
+      xhr.send(file);
+    });
+  }
+
+  function next() {
+    if (busy) return;
+    var job = queue.shift();
+    if (!job) return;
+    busy = true;
+    upload(job.file, job.row).then(function (ok) {
+      busy = false;
+      if (ok) {
+        doneText.textContent = okCount > 1
+          ? '已上传 ' + okCount + ' 个音频，电脑端开始播放最新的一个'
+          : '上传成功，电脑端已开始播放';
+        doneTip.classList.add('show');
+      }
+      next();
+    });
+  }
+
+  picker.addEventListener('change', function () {
+    var files = Array.prototype.slice.call(picker.files || []);
+    files.forEach(function (f) {
+      var row = addFileRow(f);
+      queue.push({ file: f, row: row });
+    });
+    picker.value = '';
+    next();
+  });
+
+  // 连接状态
+  fetch('/api/ping', { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      var dot = document.getElementById('dot');
+      var t = document.getElementById('statusText');
+      if (d && d.ok) {
+        dot.classList.add('on');
+        t.textContent = '已连接电脑，可以上传';
+      } else { throw new Error('bad'); }
+    })
+    .catch(function () {
+      var dot = document.getElementById('dot');
+      document.getElementById('statusText').textContent = '未连接到电脑，请重新扫码';
+      dot.classList.add('bad');
+    });
+
+  // 保持屏幕常亮（部分浏览器支持）
+  try { fetch('/api/ping'); } catch (e) {}
+})();
+</script>
+</body>
+</html>
