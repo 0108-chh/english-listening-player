@@ -35,7 +35,7 @@
 
 ## 快速开始
 
-**用现成的**：双击 `英语听力播放器.exe`（首次启动约 2～4 秒解包）。
+**用现成的**：到 [Releases](https://github.com/0108-chh/english-listening-player/releases/latest) 下载 `english-listening-player-x.y.z.exe`，双击运行（首次启动约 2～4 秒解包）。
 
 1. 若 Windows 弹出防火墙提示，选择**允许访问**（局域网扫码上传需要它）。
 2. 手机连上**同一个 Wi-Fi**，用微信/相机扫左侧二维码 → 上传页 → 选择音频 → 上传。
