@@ -7,7 +7,7 @@ from pathlib import Path
 
 APP_NAME = "英语听力播放器"
 APP_ID = "EnglishListeningPlayer"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 
 
 def app_root() -> Path:

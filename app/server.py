@@ -404,6 +404,14 @@ class ApiHandler(BaseHTTPRequestHandler):
             return self._json({"ok": True, "app": APP_NAME, "version": APP_VERSION,
                                "upload_dir": str(app.upload_dir)}, head_only=head_only)
 
+        # 二维码校验：告诉页面「现在这张码里应该编码哪个地址」，
+        # 页面拿它和自己手里的图对比，不一致就自动重画。
+        if path == "/api/qr":
+            return self._json({"ok": True, "url": app.upload_url(),
+                               "ts": int(time.time() * 1000),
+                               "channel": app.store.data.get("channel", "lan"),
+                               "tunnel_state": app.tunnel_state}, head_only=head_only)
+
         if path.startswith("/media/"):
             return self._media(path[len("/media/"):], head_only)
 

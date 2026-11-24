@@ -56,8 +56,10 @@
 
       <div class="qr-box">
         <div class="qr-frame"><img id="qrImg" alt="上传二维码"></div>
-        <div class="qr-hint">
-          <span class="pulse"></span>等待老师扫码
+        <div class="qr-hint" id="qrHint">
+          <span class="pulse"></span>
+          <span id="qrHintText">等待老师扫码</span>
+          <span class="qr-stamp" id="qrStamp">更新中…</span>
         </div>
       </div>
 
@@ -156,14 +158,9 @@
     <div class="extra">
       <div class="speed-wrap">
         <span class="speed-label">倍速</span>
-        <div class="speed-group" id="speedGroup">
-          <button data-speed="0.5">0.5×</button>
-          <button data-speed="0.75">0.75×</button>
-          <button data-speed="1" class="on">1.0×</button>
-          <button data-speed="1.25">1.25×</button>
-          <button data-speed="1.5">1.5×</button>
-          <button data-speed="2">2.0×</button>
-        </div>
+        <input type="range" id="speedRange" min="0.5" max="3" step="0.05" value="1"
+               aria-label="播放倍速" title="拖动调节倍速（双击恢复 1.0×）">
+        <button type="button" class="speed-badge" id="speedBadge" title="点击恢复 1.0×">1.0×</button>
       </div>
       <div class="vol-wrap">
         <button class="ctrl small" id="btnMute" title="静音"><svg><use href="#i-vol"/></svg></button>
@@ -214,7 +211,7 @@
         <ul class="keys">
           <li><kbd>空格</kbd>播放 / 暂停</li>
           <li><kbd>←</kbd><kbd>→</kbd>快退 / 快进 5 秒</li>
-          <li><kbd>[</kbd><kbd>]</kbd>降低 / 提高倍速</li>
+          <li><kbd>[</kbd><kbd>]</kbd>微调倍速（±0.05×，按住 <kbd>Shift</kbd> 为 ±0.25×）</li>
         </ul>
       </section>
     </div>

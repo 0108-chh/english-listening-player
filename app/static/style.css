@@ -210,6 +210,27 @@ svg { width: 20px; height: 20px; display: block; }
   justify-content: center;
   gap: 6px;
 }
+
+/* 二维码更新于：让老师一眼确认「屏幕上这张码是最新的」 */
+.qr-stamp {
+  font-size: 10.5px;
+  color: #a6b0bf;
+  background: #f2f5fb;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-variant-numeric: tabular-nums;
+  transition: color .25s, background .25s, border-color .25s;
+  white-space: nowrap;
+}
+.qr-stamp.fresh {
+  color: #0a8f66;
+  background: var(--green-soft);
+  border-color: #c8f0df;
+}
+#qrHintText.warn { color: var(--accent); }
+/* 提示语较长时先让位给提示，时间戳暂时收起，避免挤成两行 */
+.qr-hint.note .qr-stamp { display: none; }
 .pulse {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--accent);
@@ -676,38 +697,85 @@ svg { width: 20px; height: 20px; display: block; }
 }
 .bar:hover .bar-knob, .bar.dragging .bar-knob { opacity: 1; transform: translateX(-50%) scale(1); }
 
-.extra { display: flex; align-items: center; gap: 16px; }
-.speed-wrap { display: flex; align-items: center; gap: 8px; }
-.speed-label { font-size: 11px; color: #9aa5b4; }
-.speed-group {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  background: #f2f5fa;
-  border-radius: 9px;
-}
-.speed-group button {
-  border: none;
+.extra { display: flex; align-items: center; gap: 14px; }
+
+/* 倍速：无极滑杆 + 右侧实时读数 */
+.speed-wrap { display: flex; align-items: center; gap: 9px; }
+.speed-label { font-size: 11px; color: #9aa5b4; flex: none; }
+
+#speedRange {
+  -webkit-appearance: none;
+  width: 118px;
+  height: 20px;
   background: none;
-  height: 24px;
-  padding: 0 7px;
-  border-radius: 7px;
-  font-size: 11px;
-  color: #6b7688;
   cursor: pointer;
-  font-variant-numeric: tabular-nums;
-  transition: .14s;
-  font-family: inherit;
+  --p: 20%;
 }
-.speed-group button:hover { color: var(--ink); }
-.speed-group button.on {
+#speedRange::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #2f6bf6 0 var(--p), #e3e9f4 var(--p) 100%);
+}
+#speedRange::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  margin-top: -4.5px;
+  border-radius: 50%;
   background: #fff;
-  color: var(--accent);
+  border: 2.5px solid var(--accent);
+  box-shadow: 0 1.5px 4px rgba(15, 21, 34, .22);
+  transition: transform .12s, box-shadow .12s;
+}
+#speedRange:hover::-webkit-slider-thumb { transform: scale(1.1); }
+#speedRange:active::-webkit-slider-thumb {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 6px rgba(47, 107, 246, .14);
+}
+#speedRange:focus-visible { outline: none; }
+#speedRange:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 5px rgba(47, 107, 246, .18);
+}
+
+.speed-badge {
+  min-width: 54px;
+  height: 27px;
+  padding: 0 8px;
+  border: 1px solid #e2e8f3;
+  border-radius: 8px;
+  background: #f5f7fb;
+  color: #6b7688;
+  font: inherit;
+  font-size: 12.5px;
   font-weight: 650;
-  box-shadow: 0 1px 3px rgba(15, 21, 34, .12);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .2px;
+  cursor: pointer;
+  transition: .15s;
+  flex: none;
+}
+.speed-badge:hover { background: #eef2f9; border-color: #d5deec; }
+.speed-badge:active { transform: scale(.96); }
+.speed-badge.tuned {
+  background: var(--accent-soft);
+  border-color: #c9d9fb;
+  color: var(--accent);
 }
 
 .vol-wrap { display: flex; align-items: center; gap: 4px; }
+
+/* 音量滑杆：与倍速滑杆同一套观感（右侧蓝色进度填充） */
+#volRange { width: 86px; --p: 85%; }
+#volRange::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #2f6bf6 0 var(--p), #e8ecf5 var(--p) 100%);
+}
+#volRange::-webkit-slider-thumb {
+  width: 12px; height: 12px;
+  margin-top: -4px;
+}
+#volRange:active::-webkit-slider-thumb { box-shadow: 0 0 0 5px rgba(47, 107, 246, .14); }
+
 input[type="range"] {
   -webkit-appearance: none;
   width: 74px;
@@ -957,7 +1025,7 @@ kbd {
 ::-webkit-scrollbar-track { background: transparent; }
 
 @media (max-width: 1180px) {
-  .speed-group button { padding: 0 5px; font-size: 10.5px; }
+  #speedRange { width: 96px; }
   .layout { grid-template-columns: 320px minmax(0, 1fr); }
   .search input { width: 92px; }
   .player { gap: 14px; padding: 0 16px; }

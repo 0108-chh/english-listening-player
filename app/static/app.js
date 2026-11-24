@@ -17,7 +17,6 @@
   const durCache = new Map();
   let ended = false;
   let isDragging = false;
-  let lastQrUrl = '';
   let lastInfoKey = '';
   let saveTimer = null;
   let metaBusy = false;
@@ -61,10 +60,32 @@
     return r.json();
   }
 
-  function saveSettings(patch, delay = 0) {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => post('/api/settings', patch).catch(() => {}), delay);
+  /* 设置写盘：把短时间内的多次改动合并成一次请求。
+     注意要「合并」而不是「覆盖」——否则拖倍速后马上调音量，
+     后一次调用会把还没发出去的 speed 取消掉，重启后倍速就丢了。 */
+  let pendingPatch = {};
+
+  function flushSettings() {
+    if (!Object.keys(pendingPatch).length) return;
+    const body = JSON.stringify(pendingPatch);
+    pendingPatch = {};
+    try {
+      navigator.sendBeacon('/api/settings', new Blob([body], { type: 'application/json' }));
+    } catch (e) { /* 退出阶段失败就算了，下次改动还会写 */ }
   }
+
+  function saveSettings(patch, delay = 0) {
+    Object.assign(pendingPatch, patch);
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      const body = pendingPatch;
+      pendingPatch = {};
+      post('/api/settings', body).catch(() => {});
+    }, delay);
+  }
+
+  // 关窗前把还没写盘的设置补发一次（sendBeacon 在页面卸载时也能发出去）
+  window.addEventListener('beforeunload', flushSettings);
 
   const parentName = (p) => {
     const parts = String(p || '').split(/[\\/]/).filter(Boolean);
@@ -72,6 +93,57 @@
   };
 
   const SRC_LABEL = { upload: '上传', folder: '目录', local: '本地' };
+
+  /* ------------------ 倍速（无极调节） ------------------ */
+  const SPEED_MIN = 0.5;
+  const SPEED_MAX = 3;
+  const SPEED_STEP = 0.05;
+
+  /* 吸附到 0.05 网格并夹在 [0.5, 3] 内，保证数值干净、不会出现 1.0500000001 */
+  function snapSpeed(v) {
+    let n = Math.round((Number(v) - SPEED_MIN) / SPEED_STEP);
+    const max = Math.round((SPEED_MAX - SPEED_MIN) / SPEED_STEP);
+    if (!isFinite(n)) n = Math.round((1 - SPEED_MIN) / SPEED_STEP);
+    n = Math.max(0, Math.min(max, n));
+    return +(SPEED_MIN + n * SPEED_STEP).toFixed(2);
+  }
+
+  /* 1.0× / 1.25× / 0.75×：最多两位小数，至少保留一位 */
+  function fmtSpeed(v) {
+    return (Math.round(v * 100) / 100).toFixed(2).replace(/0$/, '') + '×';
+  }
+
+  const speedRatio = (v) => (v - SPEED_MIN) / (SPEED_MAX - SPEED_MIN);
+
+  /* 只负责把当前倍速画到滑杆和读数上 */
+  function paintSpeed(v) {
+    const range = $('#speedRange');
+    if (range) {
+      range.style.setProperty('--p', (speedRatio(v) * 100).toFixed(2) + '%');
+      if (Math.abs(parseFloat(range.value) - v) > 1e-6) range.value = String(v);
+    }
+    const badge = $('#speedBadge');
+    if (badge) {
+      badge.textContent = fmtSpeed(v);
+      badge.classList.toggle('tuned', Math.abs(v - 1) > 1e-6);
+    }
+  }
+
+  function setSpeed(v, persist = true) {
+    const val = snapSpeed(v);
+    state.speed = val;
+    audio.playbackRate = val;
+    paintSpeed(val);
+    if (persist) saveSettings({ speed: val }, 250);
+  }
+
+  /* 一键回到正常速度（双击滑杆 / 点读数） */
+  function resetSpeed() {
+    if (Math.abs(state.speed - 1) < 1e-6) return;
+    setSpeed(1);
+    saveSettings({ speed: 1 }, 0);
+    toast('倍速已恢复 1.0×');
+  }
 
   /* ------------------ 渲染 ------------------ */
   function visibleTracks() {
@@ -205,18 +277,115 @@
       tag.classList.remove('green');
     }
 
-    if (info.upload_url !== lastQrUrl) {
-      lastQrUrl = info.upload_url;
-      loadQr();
-    }
+    // 二维码跟着当前上传地址走：地址变了（换通道 / 中转重连 / 端口变化）就重画
+    checkQr();
     renderTunnelState();
   }
 
-  function loadQr() {
+  /* ------------------ 二维码：自动刷新 ------------------ */
+  const QR_TTL = 5 * 60 * 1000;   // 兜底：最长 5 分钟重新取一次图
+  const QR_CHECK_MS = 8000;       // 每 8 秒核对一次「图里的地址 == 服务端当前地址」
+
+  const qrState = { url: '', at: 0, loading: false, tries: 0 };
+  let qrNoteTimer = null;
+  let qrCheckTimer = null;
+
+  /* 把「更新于 HH:MM:SS」写在二维码下方 */
+  function stampQr(fresh) {
+    const el = $('#qrStamp');
+    if (!el || !qrState.at) return;
+    const d = new Date(qrState.at);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    el.textContent = `更新于 ${hh}:${mm}:${ss}`;
+    el.classList.remove('fresh');
+    if (fresh) {
+      // 触发一次重排，保证连续两次刷新也能重新闪一下
+      void el.offsetWidth;
+      el.classList.add('fresh');
+      setTimeout(() => el.classList.remove('fresh'), 2800);
+    }
+  }
+
+  /* 二维码变化时在提示行里说一句，几秒后恢复成「等待老师扫码」 */
+  function qrNote(text) {
+    const txt = $('#qrHintText');
+    const hint = $('#qrHint');
+    if (!txt || !hint) return;
+    clearTimeout(qrNoteTimer);
+    txt.textContent = text;
+    txt.classList.add('warn');
+    hint.classList.add('note');
+    qrNoteTimer = setTimeout(() => {
+      txt.textContent = '等待老师扫码';
+      txt.classList.remove('warn');
+      hint.classList.remove('note');
+    }, 6000);
+  }
+
+  /**
+   * 重新生成二维码。
+   * opts.quiet：静默重取（定时兜底），不闪透明度、不提示
+   * opts.fresh：地址变了导致的更新，闪一下绿色「更新于」
+   */
+  function loadQr(opts = {}) {
     const img = $('#qrImg');
-    img.style.opacity = '0.3';
-    img.onload = () => { img.style.opacity = '1'; };
-    img.src = `/qr.svg?v=${Date.now()}`;
+    const url = state.info?.upload_url || '';
+    if (!url || qrState.loading) return;
+    qrState.loading = true;
+    qrState.url = url;
+    qrState.at = Date.now();
+    if (!opts.quiet) img.style.opacity = '0.3';
+    img.onload = () => {
+      qrState.loading = false;
+      qrState.tries = 0;
+      img.style.opacity = '1';
+      stampQr(!!opts.fresh);
+    };
+    img.onerror = () => {
+      qrState.loading = false;
+      if (qrState.tries++ < 3) setTimeout(() => loadQr(opts), 1500);
+      else img.style.opacity = '1';
+    };
+    img.src = `/qr.svg?v=${qrState.at}`;
+  }
+
+  /* 二维码自检：地址过期 / 长时间没动 / 服务端换地址，都会自动重画。
+     注意不能因为「窗口被遮住/最小化」就跳过——投影时窗口正好处于隐藏状态，
+     而这恰恰是最需要二维码保持最新的时候。 */
+  async function checkQr() {
+    const cur = state.info?.upload_url || '';
+    if (!cur) return;                              // 还在启动，等下一轮
+    if (!qrState.url) {                            // 首次加载，不需要提示
+      loadQr();
+      return;
+    }
+    if (cur !== qrState.url) {
+      loadQr({ fresh: true });
+      qrNote('二维码已自动更新，请重新扫码');
+      return;
+    }
+    if (Date.now() - qrState.at > QR_TTL) {         // 兜底重取，防止拿到旧图
+      loadQr({ quiet: true });
+      return;
+    }
+    try {
+      const d = await getJSON('/api/qr');           // 以服务端为准再核对一次
+      if (d && d.ok && d.url && d.url !== qrState.url) {
+        loadQr({ fresh: true });
+        qrNote('二维码已自动更新，请重新扫码');
+      }
+    } catch (e) { /* 服务正在重启，下一轮再说 */ }
+  }
+
+  function startQrWatch() {
+    clearInterval(qrCheckTimer);
+    qrCheckTimer = setInterval(checkQr, QR_CHECK_MS);
+    // 切回窗口立刻核一次：老师上课前把窗口调出来时，看到的必须是最新的码
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) checkQr();
+    });
   }
 
   function renderFolders() {
@@ -371,20 +540,12 @@
     else if (list[next]) selectTrack(list[next].id, true);
   }
 
-  function setSpeed(v, persist = true) {
-    state.speed = v;
-    audio.playbackRate = v;
-    document.querySelectorAll('#speedGroup button').forEach((b) => {
-      b.classList.toggle('on', parseFloat(b.dataset.speed) === v);
-    });
-    if (persist) saveSettings({ speed: v }, 200);
-  }
-
   function setVolume(v, persist = true) {
     state.volume = v;
     audio.volume = v;
     audio.muted = v === 0;
     $('#volRange').value = Math.round(v * 100);
+    $('#volRange').style.setProperty('--p', (v * 100).toFixed(0) + '%');
     $('#btnMute').innerHTML = `<svg><use href="#${v === 0 ? 'i-mute' : 'i-vol'}"/></svg>`;
     if (persist) saveSettings({ volume: v }, 400);
   }
@@ -530,6 +691,7 @@
   });
   audio.addEventListener('loadedmetadata', () => {
     if (state.current && audio.duration) durCache.set(state.current, audio.duration);
+    audio.playbackRate = state.speed;      // 换源后确保倍速仍然是上次记住的值
     $('#tTotal').textContent = fmt(audio.duration || 0);
     renderNow();
   });
@@ -563,10 +725,12 @@
     renderTracks();
   });
 
-  $('#speedGroup').addEventListener('click', (e) => {
-    const b = e.target.closest('button');
-    if (b) setSpeed(parseFloat(b.dataset.speed));
-  });
+  // 倍速：拖动即时生效，松手后立刻落盘；双击滑杆 / 点读数回到 1.0×
+  const speedRange = $('#speedRange');
+  speedRange.addEventListener('input', (e) => setSpeed(parseFloat(e.target.value)));
+  speedRange.addEventListener('change', () => saveSettings({ speed: state.speed }, 0));
+  speedRange.addEventListener('dblclick', resetSpeed);
+  $('#speedBadge').addEventListener('click', resetSpeed);
 
   $('#volRange').addEventListener('input', (e) => setVolume(parseInt(e.target.value, 10) / 100));
   $('#btnMute').addEventListener('click', () => {
@@ -627,7 +791,12 @@
   $('#btnReveal').addEventListener('click', () => {
     if (window.pywebview?.api?.reveal) window.pywebview.api.reveal('');
   });
-  $('#btnRefreshQr').addEventListener('click', () => { lastInfoKey = ''; renderInfo(); loadQr(); });
+  $('#btnRefreshQr').addEventListener('click', () => {
+    lastInfoKey = '';
+    renderInfo();
+    loadQr({ fresh: true });
+    qrNote('二维码已刷新');
+  });
 
   // 设置弹窗
   const modal = $('#modalMask');
@@ -662,7 +831,6 @@
       const r = await post('/api/settings', { channel: ch });
       if (r.info) state.info = r.info;
       lastInfoKey = '';
-      lastQrUrl = '';
       renderInfo();
       if (ch === 'tunnel') toast('正在建立公网中转…');
     });
@@ -678,17 +846,14 @@
     if (e.code === 'Space') { e.preventDefault(); toggle(); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); audio.currentTime = Math.max(0, audio.currentTime - 5); }
     else if (e.key === 'ArrowRight') { e.preventDefault(); audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 5); }
-    else if (e.key === '[') cycleSpeed(-1);
-    else if (e.key === ']') cycleSpeed(1);
+    else if (e.key === '[') { e.preventDefault(); stepSpeed(e.shiftKey ? -0.25 : -0.05); }
+    else if (e.key === ']') { e.preventDefault(); stepSpeed(e.shiftKey ? 0.25 : 0.05); }
   });
 
-  function cycleSpeed(dir) {
-    const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2];
-    let i = speeds.indexOf(state.speed);
-    if (i < 0) i = 2;
-    i = Math.max(0, Math.min(speeds.length - 1, i + dir));
-    setSpeed(speeds[i]);
-    toast(`倍速 ${speeds[i]}×`);
+  function stepSpeed(delta) {
+    setSpeed(snapSpeed(state.speed + delta));
+    saveSettings({ speed: state.speed }, 150);
+    toast(`倍速 ${fmtSpeed(state.speed)}`);
   }
 
   // 拖拽导入
@@ -711,7 +876,7 @@
     const d = await getJSON('/api/state');
     state.tracks = d.tracks || [];
     state.folders = d.folders || [];
-    state.speed = d.speed || 1;
+    state.speed = snapSpeed(d.speed ?? 1);
     state.volume = typeof d.volume === 'number' ? d.volume : 0.85;
     state.seq = d.upload_seq || 0;
     state.current = d.current || null;
@@ -731,7 +896,8 @@
     renderFolders();
     renderInfo();
     renderNow();
-    loadQr();
+    loadQr({ fresh: true });
+    startQrWatch();
 
     setInterval(() => poll(false), 1200);
     setInterval(() => { if (modal.hidden) renderInfo(); }, 3000);
